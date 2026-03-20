@@ -1,0 +1,18 @@
+services:
+  avqmail:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: avqmail
+    restart: unless-stopped
+    networks:
+      - network_grafana
+    volumes:
+      - ./mails:/app/mails
+      - ./processed_emails.txt:/app/processed_emails.txt
+    environment:
+      TZ: Europe/Paris
+
+networks:
+  network_grafana:
+    external: true
