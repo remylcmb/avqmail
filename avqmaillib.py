@@ -17,8 +17,7 @@ def get_last_email():
     """
     index_file = f'{LOCATION}/mails/_index.xml'
     processed_file = f'{LOCATION}/processed_emails.txt'
-    processed_path = Path(processed_file)
-    with open(processed_path, "r") as f:
+    with open(processed_file, "r") as f:
         processed = set(line.strip() for line in f)
 
     tree = ET.parse(index_file)
