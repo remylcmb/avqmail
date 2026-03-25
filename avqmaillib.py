@@ -55,18 +55,18 @@ def parse_email(email_filename):
         body = msg.get_payload(decode=True).decode()
         soup = BeautifulSoup(body, 'html.parser')
         table = soup.find("table")
-        if not table: #the email type is not the 30mn report
+        if "Readiness_Check_PRD_CMBMC" in msg['Subject']:
+            headers = [th.get_text(strip=True) for th in table.find_all('th')]
+
+            data = []
+
+            for row in table.find_all('tr')[1:]:
+                cols = [td.get_text(strip=True) for td in row.find_all('td')]
+                if cols:
+                    data.append(dict(zip(headers,cols)))
+            return data
+        else:
             return None
-        headers = [th.get_text(strip=True) for th in table.find_all('th')]
-
-        data = []
-
-        for row in table.find_all('tr')[1:]:
-            cols = [td.get_text(strip=True) for td in row.find_all('td')]
-            if cols:
-                data.append(dict(zip(headers,cols)))
-        return data
-
 
 def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9_]', '_', name).lower()

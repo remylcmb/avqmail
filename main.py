@@ -27,15 +27,17 @@ if __name__ == "__main__":
 
                 metric_name = sanitize(rpa_id)
                 json_body = [{
-                    "measurement": "emailreporting",
+                    "measurement": "emailreportingn",
                     "tags": {
                         "description":row.get('DESCRIPTION'),
                         'metric_name':metric_name
                     },
                     "fields": {
-                        'status':1 if row.get('STATUS') == "OK" else 0
+                        'status':1 if row.get('STATUS') == "OK" else 0,
+                        'comment':row.get('COMMENT')
                     }
                 }]
+                print(json_body)
                 r = client.write_points(json_body)
                 if r:
                     print(f'[{datetime.now():%H:%M:%S}] data written to influx.')
