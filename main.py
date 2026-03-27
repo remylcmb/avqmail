@@ -5,11 +5,12 @@ from influxdb import InfluxDBClient
 from datetime import datetime
 if __name__ == "__main__":
     client = InfluxDBClient(
-            host="10.40.38.3",
-            port=8089,
+            host="influxdbreporting.za.cmb.mc",
+            port=8086,
             username="admin",
             password="admin123",
-            database="avqmail"
+            database="avqmail",
+            ssl=True
     )
 
     while True:

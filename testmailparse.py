@@ -7,7 +7,7 @@ LOCATION = "."
 
 
 if __name__ == "__main__":
-    email_filename = "14B2243DCB2645718B7CB0CDB7F46669.MAI"
+    email_filename = "AB3EC074E7674CA58184E04EB1F22997.MAI"
     with open(f'{LOCATION}/mails/{email_filename}', 'r', encoding='utf-8', errors="ignore") as f:
         content = f.read()
     msg = email.message_from_string(content)
@@ -24,9 +24,15 @@ if __name__ == "__main__":
         data = []
 
         for row in table.find_all('tr')[1:]:
-            cols = [td.get_text(strip=True) for td in row.find_all('td')]
+            cols = []
+            for i, td in enumerate(row.find_all('td')):
+                if headers[i] == "COMMENT":
+                    cols.append(td.decode_contents().replace('\n', ''))  # keep HTML
+                else:
+                    cols.append(td.get_text(strip=True))
+            
             if cols:
-                data.append(dict(zip(headers,cols)))
+                data.append(dict(zip(headers, cols)))
         pprint(data)
     elif "Morning status" in msg['Subject']:
         print("Morning check")

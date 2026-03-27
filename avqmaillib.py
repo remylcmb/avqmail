@@ -61,9 +61,15 @@ def parse_email(email_filename):
             data = []
 
             for row in table.find_all('tr')[1:]:
-                cols = [td.get_text(strip=True) for td in row.find_all('td')]
+                cols = []
+                for i, td in enumerate(row.find_all('td')):
+                    if headers[i] == "COMMENT":
+                        cols.append(td.decode_contents().replace('\n', ''))  # keep HTML
+                    else:
+                        cols.append(td.get_text(strip=True))
+                
                 if cols:
-                    data.append(dict(zip(headers,cols)))
+                    data.append(dict(zip(headers, cols)))
             return data
         else:
             return None
