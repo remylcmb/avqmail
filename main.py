@@ -12,7 +12,14 @@ if __name__ == "__main__":
             database="avqmail",
             ssl=True
     )
-
+    influx_bank = InfluxDBClient(
+            host="influxdb.cmb.mc",
+            port=8086,
+            username="admin",
+            password="UMzyWJgJJwscj98",
+            database="avqmail",
+            ssl=True
+    )
     while True:
         last_email_name = get_last_email()
         if not last_email_name:
@@ -40,7 +47,10 @@ if __name__ == "__main__":
                 }]
                 print(json_body)
                 r = client.write_points(json_body)
+                r_bank = influx_bank.write_points(json_body)
                 if r:
-                    print(f'[{datetime.now():%H:%M:%S}] data written to influx.')
+                    print(f'[{datetime.now():%H:%M:%S}] data written to influx ZA.')
+                if r_bank:
+                    print(f'[{datetime.now():%H:%M:%S}] data written to influx BANK.')
         else:
             print(f'[{datetime.now():%H:%M:%S}] new email but no data')
