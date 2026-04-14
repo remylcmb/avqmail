@@ -7,6 +7,7 @@ import email
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import re
+import os
 #LOCATION = '/opt/docker_containers/avqmail'
 #in contaienr, uncomment:
 LOCATION = '/app'
@@ -20,10 +21,13 @@ def get_last_email():
     with open(processed_file, "r") as f:
         processed = set(line.strip() for line in f)
 
-    tree = ET.parse(index_file)
-    root = tree.getroot()
-    messages = root.findall(".//ELEMENT")
-
+    try:
+        tree = ET.parse(index_file)
+        root = tree.getroot()
+        messages = root.findall(".//ELEMENT")
+    except ET.ParseError as e:
+        print(f'[ERROR] Failed to parse XML File')
+        return False
     if not messages:
         return False
     else:
@@ -46,16 +50,27 @@ def get_last_email():
 
 
 
-def parse_email(email_filename):
-    with open(f'{LOCATION}/mails/{email_filename}', 'r', encoding='utf-8', errors="ignore") as f:
+def parse_email(email_filename, location="/app"):
+    with open(f'{location}/mails/{email_filename}', 'r', encoding='utf-8', errors="ignore") as f:
         content = f.read()
     msg = email.message_from_string(content)
-    if "@avaloq.ch" in msg.get('from'):
+    if "@avaloq." in msg.get('from'):
 
-        body = msg.get_payload(decode=True).decode()
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == "text/html":
+                    body = part.get_payload(decode=True).decode('utf-8', errors="replace")
+        else:
+            body = msg.get_payload(decode=True).decode('utf-8', errors="replace")
+
         soup = BeautifulSoup(body, 'html.parser')
-        table = soup.find("table")
+
+        #
+        # 30MN STATUS MAIL
+        #
+
         if "Readiness_Check_PRD_CMBMC" in msg['Subject']:
+            table = soup.find("table")
             headers = [th.get_text(strip=True) for th in table.find_all('th')]
 
             data = []
@@ -70,10 +85,54 @@ def parse_email(email_filename):
                 
                 if cols:
                     data.append(dict(zip(headers, cols)))
-            return data
-        else:
-            return None
+            return {
+                'email_type':'readiness',
+                'data':data
+            }
+
+        #
+        # Batch morning Checks
+        #
+
+        elif "EOD Morning status" in msg['Subject']:
+            all_table = soup.find_all('table')
+            table = all_table[2]
+            headers = [th.get_text(strip=True) for th in table.find_all('th')]
+            data = []
+            for row in table.find_all('tr')[1:]:
+                cols = []
+                for td in row.find_all('td'):
+                    cols.append(td.get_text(strip=True))
+                if cols:
+                    data.append(dict(zip(headers, cols)))
+            
+            for row in data:
+                if row['Status'] == "COMPLETED NORMAL":
+                    row.update({
+                        'status':0
+                    })
+                elif row['Status'] == 'NOT COMPLETED':
+                    row.update({
+                        'status':1
+                    })
+                elif row['Status'] == 'COMPLETED ABNORMAL':
+                    row.update({
+                        'status':2
+                    })
+                else:
+                    row.update({
+                        'status':3
+                    })
+                
+                row.pop('Status')
+                #print(f"{row['status']=}")
+            return {
+                'email_type':'morningcheck',
+                'data':data
+            }
+        return None
 
 def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9_]', '_', name).lower()
+
 
