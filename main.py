@@ -3,11 +3,12 @@ import time
 from avqmaillib import get_last_email, parse_email, sanitize
 from influxdb import InfluxDBClient
 from datetime import datetime
+import urllib3
+urllib3.disable_warnings()
 
 
 
-
-def write2influx(body):
+def write2influx(body, emailtype):
     influx_za = InfluxDBClient(
             host="influxdbreporting.za.cmb.mc",
             port=8086,
@@ -27,10 +28,14 @@ def write2influx(body):
     r_za = influx_za.write_points(body)
     r_bank = influx_bank.write_points(body)
     if r_za:
-        print(f'[{datetime.now():%H:%M:%S}] - readiness written to influx ZA.')
+        print(f'[{datetime.now():%H:%M:%S}] - {emailtype} written to influx ZA.')
+    else:
+        print(f'[{datetime.now():%H:%M:%S}] - ERROR - failed to write {emailtype} to influx ZA.')
     if r_bank:
-        print(f'[{datetime.now():%H:%M:%S}] - readiness written to influx Bank.')
-
+        print(f'[{datetime.now():%H:%M:%S}] - {emailtype} written to influx Bank.')
+    else:
+        print(f'[{datetime.now():%H:%M:%S}] - ERROR - failed to write {emailtype} to influx Bank.')
+    
 
 if __name__ == "__main__":
 
@@ -59,7 +64,7 @@ if __name__ == "__main__":
                             'comment':row.get('COMMENT')
                         }
                     }]
-                    write2influx(json_body)
+                    write2influx(json_body, data['email_type'])
             if data['email_type'] == "morningcheck":
                 json_body = []
                 for row in data['data']:
@@ -70,9 +75,9 @@ if __name__ == "__main__":
                         },
                         "fields": {
                             'status':row['status'],
-                            'endtime':row['endTime']
+                            'endtime':row['EndTime']
                         }
                     })
-                write2influx(json_body)
+                write2influx(json_body, data['email_type'])
         else:
             print(f'[{datetime.now():%H:%M:%S}] new email but no data')

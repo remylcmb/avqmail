@@ -109,19 +109,19 @@ def parse_email(email_filename, location="/app"):
             for row in data:
                 if row['Status'] == "COMPLETED NORMAL":
                     row.update({
-                        'status':0
+                        'status':3
                     })
                 elif row['Status'] == 'NOT COMPLETED':
                     row.update({
-                        'status':1
+                        'status':2
                     })
                 elif row['Status'] == 'COMPLETED ABNORMAL':
                     row.update({
-                        'status':2
+                        'status':1
                     })
                 else:
                     row.update({
-                        'status':3
+                        'status':0
                     })
                 
                 row.pop('Status')
