@@ -54,6 +54,7 @@ def parse_email(email_filename, location="/app"):
     with open(f'{location}/mails/{email_filename}', 'r', encoding='utf-8', errors="ignore") as f:
         content = f.read()
     msg = email.message_from_string(content)
+    print(msg['Subject'])
     if "@avaloq." in msg.get('from'):
 
         if msg.is_multipart():
@@ -125,11 +126,25 @@ def parse_email(email_filename, location="/app"):
                     })
                 
                 row.pop('Status')
-                #print(f"{row['status']=}")
             return {
                 'email_type':'morningcheck',
                 'data':data
             }
+        
+        #
+        # Task 22 BNP Calypso 
+        #
+        elif "Calypso" in msg['Subject']:
+            if "successfully" in body:
+                return {
+                    'email_type':'endofday',
+                    'data':True
+                }
+            else:
+                return {
+                    'email_type':'endofday',
+                    'data':False
+                }
         return None
 
 def sanitize(name):
