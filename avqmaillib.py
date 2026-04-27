@@ -54,7 +54,6 @@ def parse_email(email_filename, location="/app"):
     with open(f'{location}/mails/{email_filename}', 'r', encoding='utf-8', errors="ignore") as f:
         content = f.read()
     msg = email.message_from_string(content)
-    print(msg['Subject'])
     if "@avaloq." in msg.get('from'):
 
         if msg.is_multipart():

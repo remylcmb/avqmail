@@ -79,5 +79,18 @@ if __name__ == "__main__":
                         }
                     })
                 write2influx(json_body, data['email_type'])
+
+            if data['email_type'] == "endofday":
+                json_body = []
+                json_body.append({
+                    "measurement": "avqendofday",
+                    "tags": {
+                        "milestone":"calypso",
+                    },
+                    "fields": {
+                        'status': 1 if data['data'] else 0,
+                    }
+                })
+                write2influx(json_body, data['email_type'])
         else:
             print(f'[{datetime.now():%H:%M:%S}] new email but no data')
