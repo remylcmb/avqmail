@@ -8,6 +8,42 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 import re
 import os
+import pymysql
+from datetime import datetime
+import urllib3
+urllib3.disable_warnings()
+from influxdb import InfluxDBClient
+
+
+def write2influx(body, emailtype):
+    influx_za = InfluxDBClient(
+            host="influxdbreporting.za.cmb.mc",
+            port=8086,
+            username="admin",
+            password="admin123",
+            database="avqmail",
+            ssl=True
+    )
+    influx_bank = InfluxDBClient(
+            host="influxdb.cmb.mc",
+            port=8086,
+            username="admin",
+            password="UMzyWJgJJwscj98",
+            database="avqmail",
+            ssl=True
+    )
+    r_za = influx_za.write_points(body)
+    r_bank = influx_bank.write_points(body)
+    if r_za:
+        print(f'[{datetime.now():%H:%M:%S}] - {emailtype} written to influx ZA.')
+    else:
+        print(f'[{datetime.now():%H:%M:%S}] - ERROR - failed to write {emailtype} to influx ZA.')
+    if r_bank:
+        print(f'[{datetime.now():%H:%M:%S}] - {emailtype} written to influx Bank.')
+    else:
+        print(f'[{datetime.now():%H:%M:%S}] - ERROR - failed to write {emailtype} to influx Bank.')
+
+
 #LOCATION = '/opt/docker_containers/avqmail'
 #in contaienr, uncomment:
 LOCATION = '/app'
@@ -48,9 +84,50 @@ def get_last_email():
             return False
     return filename
 
+def insert_morning_checks(data):
+    conn = pymysql.connect(
+        host="10.117.10.1",
+        user="grafana",
+        password="grafanapassword",
+        database="monitoring",
+    )
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS avqmorningcheck (
+            id          INT AUTO_INCREMENT PRIMARY KEY,
+            endtime  DATE         NOT NULL,
+            milestone      VARCHAR(100) NOT NULL,
+            status VARCHAR(255),
+            inserted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_date_mc (inserted_at, milestone)
+        )
+    """)
+
+    records = []
+
+    for row in data['data']:
+        records.append({
+            "endtime": row['EndTime'],
+            "milestone": row['Milestone'],
+            "status": row['Status']
+        })
+
+    insert_query = """
+        INSERT INTO avqmorningcheck (endtime, milestone, status)
+        VALUES (%(endtime)s, %(milestone)s, %(status)s)
+        ON DUPLICATE KEY UPDATE
+            endtime      = VALUES(endtime),
+            milestone     = VALUES(milestone),
+            status = VALUES(status),
+            inserted_at = CURRENT_TIMESTAMP
+    """
+
+    cursor.executemany(insert_query, records)
+    conn.commit()
 
 
-def parse_email(email_filename, location="/app"):
+
+def parse_email(email_filename, location="/app", debug=False):
     with open(f'{location}/mails/{email_filename}', 'r', encoding='utf-8', errors="ignore") as f:
         content = f.read()
     msg = email.message_from_string(content)
@@ -68,7 +145,10 @@ def parse_email(email_filename, location="/app"):
         #
         # 30MN STATUS MAIL
         #
+        if debug:
+            return msg['Subject']
 
+        
         if "Readiness_Check_PRD_CMBMC" in msg['Subject']:
             table = soup.find("table")
             headers = [th.get_text(strip=True) for th in table.find_all('th')]
@@ -85,11 +165,24 @@ def parse_email(email_filename, location="/app"):
                 
                 if cols:
                     data.append(dict(zip(headers, cols)))
-            return {
-                'email_type':'readiness',
-                'data':data
-            }
-
+            
+            for row in data:
+                rpa_id = row.get('RPA ID')
+                if not rpa_id:
+                    continue
+                metric_name = sanitize(rpa_id)
+                json_body = [{
+                    "measurement": "emailreportingn",
+                    "tags": {
+                        "description":row.get('DESCRIPTION'),
+                        'metric_name':metric_name
+                    },
+                    "fields": {
+                        'status':1 if row.get('STATUS') == "OK" else 0,
+                        'comment':row.get('COMMENT')
+                    }
+                }]
+                write2influx(json_body, data['email_type'])
         #
         # Batch morning Checks
         #
@@ -106,44 +199,21 @@ def parse_email(email_filename, location="/app"):
                 if cols:
                     data.append(dict(zip(headers, cols)))
             
-            for row in data:
-                if row['Status'] == "COMPLETED NORMAL":
-                    row.update({
-                        'status':3
-                    })
-                elif row['Status'] == 'NOT COMPLETED':
-                    row.update({
-                        'status':2
-                    })
-                elif row['Status'] == 'COMPLETED ABNORMAL':
-                    row.update({
-                        'status':1
-                    })
-                else:
-                    row.update({
-                        'status':0
-                    })
-                
-                row.pop('Status')
-            return {
-                'email_type':'morningcheck',
-                'data':data
-            }
+            insert_morning_checks(data)
+            print(f'[{datetime.now():%H:%M:%S}] - Morning check written to SQL.')
         
         #
         # Task 22 BNP Calypso 
         #
         elif "Calypso" in msg['Subject']:
-            if "successfully" in body:
-                return {
-                    'email_type':'endofday',
-                    'data':True
-                }
-            else:
-                return {
-                    'email_type':'endofday',
-                    'data':False
-                }
+            data = {
+                "endtime": datetime.now(),
+                "milestone": 'Calypso',
+                "status": "OK" if "successfully" in body else "FAILED"
+            }
+            insert_morning_checks(data)
+            print(f'[{datetime.now():%H:%M:%S}] - Calyspo  written to SQL.')
+            
         return None
 
 def sanitize(name):
