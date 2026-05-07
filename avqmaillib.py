@@ -13,7 +13,7 @@ from datetime import datetime
 import urllib3
 urllib3.disable_warnings()
 from influxdb import InfluxDBClient
-
+import os
 
 def write2influx(body):
     influx_za = InfluxDBClient(
@@ -79,7 +79,7 @@ def insert_morning_checks(data):
     conn = pymysql.connect(
         host="10.117.10.1",
         user="grafana",
-        password="grafanapassword",
+        password=os.environ.get('sql_pwd'),
         database="monitoring",
     )
     cursor = conn.cursor()

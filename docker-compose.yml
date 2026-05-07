@@ -12,6 +12,7 @@ services:
       - ./processed_emails.txt:/app/processed_emails.txt
     environment:
       TZ: Europe/Paris
+      sql_pwd: ${sql_pwd}
 
 networks:
   network_grafana:

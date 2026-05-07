@@ -1,3 +1,4 @@
 mails/
 __pycache__
 processed_emails.txt
+.env
