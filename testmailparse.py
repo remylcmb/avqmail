@@ -57,3 +57,4 @@ if __name__ == "__main__":
 
     cursor.executemany(insert_query, records)
     conn.commit()
+    

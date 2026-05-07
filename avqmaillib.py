@@ -15,7 +15,7 @@ urllib3.disable_warnings()
 from influxdb import InfluxDBClient
 
 
-def write2influx(body, emailtype):
+def write2influx(body):
     influx_za = InfluxDBClient(
             host="influxdbreporting.za.cmb.mc",
             port=8086,
@@ -34,14 +34,6 @@ def write2influx(body, emailtype):
     )
     r_za = influx_za.write_points(body)
     r_bank = influx_bank.write_points(body)
-    if r_za:
-        print(f'[{datetime.now():%H:%M:%S}] - {emailtype} written to influx ZA.')
-    else:
-        print(f'[{datetime.now():%H:%M:%S}] - ERROR - failed to write {emailtype} to influx ZA.')
-    if r_bank:
-        print(f'[{datetime.now():%H:%M:%S}] - {emailtype} written to influx Bank.')
-    else:
-        print(f'[{datetime.now():%H:%M:%S}] - ERROR - failed to write {emailtype} to influx Bank.')
 
 
 #LOCATION = '/opt/docker_containers/avqmail'
@@ -72,7 +64,6 @@ def get_last_email():
         for msg_elem in messages:
             filename = msg_elem.attrib.get('ID')
             if filename not in processed and filename != "DEFAULT.MAI":
-                print(f"New email detected: {filename}")
                 new_messages.append(filename)
                 
 
@@ -82,7 +73,7 @@ def get_last_email():
                     f.write(filename + "\n")
         else:
             return False
-    return filename
+    return new_messages
 
 def insert_morning_checks(data):
     conn = pymysql.connect(
@@ -105,7 +96,7 @@ def insert_morning_checks(data):
 
     records = []
 
-    for row in data['data']:
+    for row in data:
         records.append({
             "endtime": row['EndTime'],
             "milestone": row['Milestone'],
@@ -121,7 +112,8 @@ def insert_morning_checks(data):
             status = VALUES(status),
             inserted_at = CURRENT_TIMESTAMP
     """
-
+    
+    print(f'[{datetime.now():%H:%M:%S}] {len(records)} records written to SQL')
     cursor.executemany(insert_query, records)
     conn.commit()
 
@@ -139,7 +131,7 @@ def parse_email(email_filename, location="/app", debug=False):
                     body = part.get_payload(decode=True).decode('utf-8', errors="replace")
         else:
             body = msg.get_payload(decode=True).decode('utf-8', errors="replace")
-
+        print(f'[{datetime.now():%H:%M:%S}] Parsing email: {msg["Subject"]}')
         soup = BeautifulSoup(body, 'html.parser')
 
         #
@@ -182,7 +174,9 @@ def parse_email(email_filename, location="/app", debug=False):
                         'comment':row.get('COMMENT')
                     }
                 }]
-                write2influx(json_body, data['email_type'])
+                write2influx(json_body)
+            print(f'[{datetime.now():%H:%M:%S}] {len(data)} records written to InfluxDB')
+            print(f'[{datetime.now():%H:%M:%S}] - *End of Readiness*')
         #
         # Batch morning Checks
         #
@@ -200,7 +194,7 @@ def parse_email(email_filename, location="/app", debug=False):
                     data.append(dict(zip(headers, cols)))
             
             insert_morning_checks(data)
-            print(f'[{datetime.now():%H:%M:%S}] - Morning check written to SQL.')
+            print(f'[{datetime.now():%H:%M:%S}] - *End of Morning Check*')
         
         #
         # Task 22 BNP Calypso 
@@ -212,7 +206,7 @@ def parse_email(email_filename, location="/app", debug=False):
                 "status": "OK" if "successfully" in body else "FAILED"
             }
             insert_morning_checks(data)
-            print(f'[{datetime.now():%H:%M:%S}] - Calyspo  written to SQL.')
+            print(f'[{datetime.now():%H:%M:%S}] - *End of Calypso*')
             
         return None
 
