@@ -11,7 +11,7 @@ conn = pymysql.connect(
     host="10.117.10.1",
     user="grafana",
     password="grafanapassword",
-    database="monitoring",
+    database="monitoring",  
 )
 cursor = conn.cursor()
 cursor.execute("""

@@ -13,7 +13,7 @@ if __name__ == "__main__":
     while True:
         last_emails = get_last_email()
         if not last_emails:
-            print(f'[{datetime.now():%H:%M:%S}] no new mail.')
+            #print(f'[{datetime.now():%H:%M:%S}] no new mail.')
             time.sleep(30)
             continue
         else:
