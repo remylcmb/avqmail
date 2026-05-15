@@ -201,9 +201,9 @@ def parse_email(email_filename, location="/app", debug=False):
         #
         elif "Calypso" in msg['Subject']:
             data = {
-                "endtime": datetime.now(),
-                "milestone": 'Calypso',
-                "status": "OK" if "successfully" in body else "FAILED"
+                "EndTime": datetime.now(),
+                "Milestone": 'Calypso',
+                "Status": "OK" if "successfully" in body else "FAILED"
             }
             insert_morning_checks(data)
             print(f'[{datetime.now():%H:%M:%S}] - *End of Calypso*')
