@@ -1,7 +1,7 @@
 FROM python:3-slim
 
 WORKDIR /app
-RUN pip install --proxy=http://proxy.cmb.mc:8080 beautifulsoup4 influxdb pymysql
+RUN pip install --proxy=http://proxy.cmb.mc:8080 beautifulsoup4 influxdb pymysql cryptography
 
 COPY main.py main.py
 COPY avqmaillib.py avqmaillib.py
